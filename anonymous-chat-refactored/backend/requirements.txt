@@ -1,0 +1,5 @@
+# backend/requirements.txt
+fastapi>=0.90.0 # 使用较新版本以获得更好的类型提示和功能
+uvicorn[standard]>=0.20.0 # ASGI 服务器，[standard] 包含 cython 加速的依赖
+python-multipart # 用于处理表单数据，包括文件上传
+websockets>=10.0 # FastAPI 默认使用的 WebSocket 库
