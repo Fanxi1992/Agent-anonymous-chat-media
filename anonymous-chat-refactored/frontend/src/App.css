@@ -1,0 +1,285 @@
+/* 全局样式 */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f4f4f4; /* 淡灰色背景 */
+}
+
+/* 应用容器 */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* 占满整个视窗高度 */
+  max-width: 1000px; /* 限制最大宽度 */
+  margin: 0 auto; /* 居中显示 */
+  border: 1px solid #ddd;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  background-color: #fff; /* 白色背景 */
+}
+
+/* 头部 */
+.app-header {
+  background-color: #4a90e2; /* 蓝色头部背景 */
+  color: white;
+  padding: 10px 20px;
+  text-align: center;
+  border-bottom: 1px solid #357ebd;
+}
+
+.app-header h1 {
+    margin: 0;
+    font-size: 1.5em;
+}
+
+.status-bar {
+    font-size: 0.8em;
+    margin-top: 5px;
+    color: #eee; /* 浅灰色状态文本 */
+}
+
+.status-connected {
+    color: #90ee90; /* 浅绿色 */
+}
+.status-disconnected {
+    color: #ffcccb; /* 淡红色 */
+}
+.status-connecting {
+    color: #fafad2; /* 浅黄色 */
+}
+.user-info {
+    font-weight: bold;
+}
+.error-message {
+    color: #ff6347; /* 番茄红 */
+    font-weight: bold;
+}
+
+
+/* 主内容区域 */
+.main-content {
+  display: flex;
+  flex: 1; /* 占据剩余空间 */
+  overflow: hidden; /* 防止子元素溢出 */
+}
+
+/* 用户列表面板 */
+.user-list-panel {
+  width: 200px;
+  border-right: 1px solid #ddd;
+  padding: 15px;
+  background-color: #f8f8f8; /* 稍浅的灰色 */
+  overflow-y: auto; /* 如果用户过多则滚动 */
+  display: flex;
+  flex-direction: column;
+}
+
+.user-list-panel h2 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.1em;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 5px;
+}
+
+.user-list-panel ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex-grow: 1; /* 占据剩余空间，将按钮推到底部 */
+}
+
+.user-list-panel li {
+  padding: 5px 0;
+  color: #555;
+  white-space: nowrap; /* 防止换行 */
+  overflow: hidden;
+  text-overflow: ellipsis; /* 超出显示省略号 */
+}
+
+.user-list-panel li.current-user {
+  font-weight: bold;
+  color: #4a90e2;
+}
+
+.change-identity-button {
+    margin-top: 15px; /* 与列表保持间距 */
+    padding: 8px 15px;
+    background-color: #f0ad4e; /* 橙色按钮 */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.change-identity-button:hover {
+    background-color: #ec971f;
+}
+
+
+/* 聊天面板 */
+.chat-panel {
+  flex: 1; /* 占据剩余宽度 */
+  display: flex;
+  flex-direction: column;
+}
+
+/* 消息显示区域 */
+.messages-area {
+  flex: 1; /* 占据大部分垂直空间 */
+  padding: 15px;
+  overflow-y: auto; /* 允许滚动 */
+  background-color: #e9ebee; /* 类似 Facebook 的聊天背景色 */
+}
+
+.message-item {
+  margin-bottom: 10px;
+  max-width: 70%; /* 消息气泡最大宽度 */
+  word-wrap: break-word; /* 长单词换行 */
+}
+
+.message-sender {
+    display: block;
+    font-size: 0.8em;
+    color: #666;
+    margin-bottom: 3px;
+}
+
+.message-content {
+    display: inline-block; /* 使背景适应内容 */
+    padding: 8px 12px;
+    border-radius: 15px;
+    line-height: 1.4;
+}
+
+/* 其他用户的消息 */
+.other-message {
+  align-self: flex-start; /* 左对齐 */
+}
+.other-message .message-content {
+    background-color: #fff; /* 白色气泡 */
+    border: 1px solid #ddd;
+    border-top-left-radius: 0; /* 左上角直角 */
+}
+.other-message .message-sender {
+    text-align: left;
+}
+
+/* 自己的消息 */
+.my-message {
+  margin-left: auto; /* 右对齐的关键 */
+  text-align: right; /* 文本内容也右对齐 */
+}
+.my-message .message-content {
+    background-color: #dcf8c6; /* 浅绿色气泡 */
+    border: 1px solid #c5e7a8;
+    border-top-right-radius: 0; /* 右上角直角 */
+    text-align: left; /* 文本本身还是左对齐 */
+}
+.my-message .message-sender {
+    /* 对于自己的消息，可以不显示发送者 */
+    display: none;
+}
+
+/* 系统消息 */
+.system-message {
+  text-align: center;
+  color: #888;
+  font-size: 0.9em;
+  margin: 10px auto; /* 上下外边距，左右自动居中 */
+  max-width: 100%; /* 系统消息可以横跨整个宽度 */
+}
+.system-message .message-content {
+    background-color: transparent;
+    padding: 2px 5px;
+    border-radius: 5px;
+    font-style: italic;
+}
+
+/* 聊天图片 */
+.message-image {
+  max-width: 100%; /* 图片宽度不超过消息气泡 */
+  max-height: 200px; /* 限制最大高度 */
+  border-radius: 10px; /* 图片圆角 */
+  margin-top: 5px; /* 和发送者信息留点距离 */
+  display: block; /* 防止下方留白 */
+  cursor: pointer; /* 暗示可以点击 (如果要做放大功能) */
+}
+.my-message .message-image {
+    margin-left: auto; /* 自己的图片也靠右 */
+}
+
+/* 输入区域 */
+.input-area {
+  display: flex;
+  padding: 10px;
+  border-top: 1px solid #ddd;
+  background-color: #f8f8f8;
+}
+
+.input-area textarea {
+  flex: 1; /* 占据主要空间 */
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  resize: none; /* 禁止调整大小 */
+  font-size: 1em;
+  line-height: 1.4;
+  margin-right: 10px;
+}
+
+.input-area textarea:disabled {
+    background-color: #eee;
+    cursor: not-allowed;
+}
+
+.input-buttons {
+    display: flex;
+    flex-direction: column; /* 按钮垂直排列 */
+    justify-content: space-between; /* 分散对齐 */
+}
+
+.input-area button {
+  padding: 8px 15px;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 0.9em;
+  /* 为按钮添加一些间距 */
+  margin-bottom: 5px; /* 按钮之间的垂直间距 */
+}
+.input-area button:last-child {
+    margin-bottom: 0;
+}
+
+
+.input-area button:hover {
+  background-color: #357ebd;
+}
+
+.input-area button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* 移除 Vite 默认样式 (如果还存在) */
+#root {
+  /* 重置或移除不需要的 Vite 默认样式 */
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  text-align: inherit;
+}
+
+.logo, .logo:hover, .logo.react:hover, @keyframes logo-spin, .card, .read-the-docs {
+    /* 可以删除或注释掉这些 Vite 默认样式 */
+    display: none; /* 简单隐藏 */
+}
