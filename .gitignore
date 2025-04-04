@@ -12,3 +12,5 @@
 .dev.vars*
 
 .idea/
+
+/venv/
