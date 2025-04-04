@@ -1,11 +1,11 @@
 # backend/main.py
 import uvicorn
 import asyncio # 导入 asyncio
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Depends
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Depends, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware # 导入 CORS 中间件
-from typing import List, Optional
+from typing import List, Optional, Union
 import logging
 import os
 import shutil
@@ -19,6 +19,7 @@ from datetime import datetime # 导入 datetime
 import config # 导入配置，虽然不直接用，但 agent_manager 和 scheduler 会用
 from agent_manager import AgentManager
 from scheduler import AgentScheduler
+from sqlalchemy import desc # 导入 desc
 
 # 配置日志记录
 logging.basicConfig(level=logging.INFO)
@@ -104,19 +105,7 @@ async def websocket_endpoint(
     await connection_manager.connect(websocket, user_id, user_name)
     await connection_manager.broadcast_user_list()
 
-    # --- 发送历史消息 (可选) ---
-    # try:
-    #     history_messages = db.query(MessageModel).order_by(MessageModel.timestamp.asc()).limit(50).all()
-    #     for msg in history_messages:
-    #         await websocket.send_json({
-    #             "type": "message",
-    #             "content": msg.content,
-    #             "messageType": msg.message_type.name,
-    #             "sender": {"id": msg.sender_id, "name": msg.sender_name},
-    #             "timestamp": msg.timestamp.isoformat() + "Z" # 添加时间戳
-    #         })
-    # except Exception as e:
-    #     logger.error(f"发送历史消息失败 for {user_id}: {e}", exc_info=True)
+    # --- 不再在此处发送历史消息，改为通过 API 获取 ---
 
     try:
         while True:
@@ -254,6 +243,47 @@ async def on_shutdown():
     if agent_manager and hasattr(agent_manager, 'http_client'):
         await agent_manager.http_client.aclose()
         logger.info("HTTP 客户端已关闭。")
+
+
+# --- 新增：获取历史消息 API --- (时间戳分页)
+@app.get("/api/messages", response_model=List[dict]) # 定义响应模型
+async def get_history_messages(
+    before_timestamp: Optional[str] = Query(None, description="ISO 格式的时间戳，用于获取此时间之前的消息"),
+    limit: int = Query(30, gt=0, le=100, description="每次加载的消息数量"), # 限制每次最多100条
+    db: Session = Depends(get_db)
+):
+    """
+    获取历史聊天记录，支持基于时间戳的分页。
+    返回按时间升序排列的消息列表。
+    """
+    query = db.query(MessageModel)
+
+    if before_timestamp:
+        try:
+            # 将 ISO 格式字符串解析为带时区的 datetime 对象
+            before_dt = datetime.fromisoformat(before_timestamp.replace('Z', '+00:00'))
+            # 查询时间戳早于指定时间的消息
+            query = query.filter(MessageModel.timestamp < before_dt)
+        except ValueError:
+            logger.warning(f"无效的时间戳格式: {before_timestamp}")
+            # 可以选择返回错误或忽略此参数
+            return [] # 返回空列表
+
+    # 按时间戳降序排序，获取最近的 N 条
+    history_messages_desc = query.order_by(desc(MessageModel.timestamp)).limit(limit).all()
+
+    # 将结果转换为字典列表，并按时间升序返回给前端
+    results = []
+    for msg in reversed(history_messages_desc): # 反转列表以获得升序
+        results.append({
+            "type": "message", # 保持和 WebSocket 消息一致的结构
+            "content": msg.content,
+            "messageType": msg.message_type.name,
+            "sender": {"id": msg.sender_id, "name": msg.sender_name},
+            "timestamp": msg.timestamp.isoformat() + "Z" # 使用 ISO 格式
+        })
+    logger.info(f"返回 {len(results)} 条历史消息 (limit={limit}, before={before_timestamp})")
+    return results
 
 
 # --- 用于本地开发运行 ---

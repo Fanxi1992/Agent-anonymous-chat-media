@@ -28,10 +28,16 @@ function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true); // 新增状态，用于显示连接中
   const [error, setError] = useState(null); // 用于显示错误信息
+  // --- 新增状态用于历史消息加载 ---
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true); // 初始假设有更多历史
 
   const ws = useRef(null);
   const messagesEndRef = useRef(null); // 用于自动滚动到底部
   const fileInputRef = useRef(null); // 用于触发文件选择
+  const messagesAreaRef = useRef(null); // 新增：引用消息显示区域
+  const oldestMessageTimestamp = useRef(null); // 新增：记录当前最老消息的时间戳
+  const initialLoadComplete = useRef(false); // 新增：标记首次历史加载是否完成
 
   // --- 用户身份初始化 ---
   useEffect(() => {
@@ -51,6 +57,54 @@ function App() {
     console.log(`User Identity: ${storedUserId} (${storedUserName})`);
   }, []);
 
+  // --- 历史消息加载函数 ---
+  const fetchHistory = useCallback(async (beforeTimestamp = null) => {
+    if (isLoadingHistory || !hasMoreHistory) return; // 防止重复加载或没有更多历史
+
+    setIsLoadingHistory(true);
+    setError(null); // 清除旧错误
+    const limit = 30; // 每次加载 30 条
+    let url = `${BACKEND_API_URL}/api/messages?limit=${limit}`;
+    if (beforeTimestamp) {
+      url += `&before_timestamp=${encodeURIComponent(beforeTimestamp)}`;
+    }
+    console.log(`正在加载历史消息: ${url}`);
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const historyMessages = await response.json();
+      console.log(`收到 ${historyMessages.length} 条历史消息`);
+
+      if (historyMessages.length > 0) {
+        // 将历史消息添加到当前消息列表的 *开头*
+        setMessages((prevMessages) => [...historyMessages, ...prevMessages]);
+        // 更新最老消息的时间戳
+        oldestMessageTimestamp.current = historyMessages[0].timestamp;
+      }
+
+      // 如果返回的消息数量小于请求的数量，说明没有更多历史了
+      if (historyMessages.length < limit) {
+        setHasMoreHistory(false);
+        console.log("没有更多历史消息了。");
+      }
+    } catch (err) {
+      console.error('加载历史消息失败:', err);
+      setError('加载历史消息失败，请稍后重试。');
+      // 可以考虑在这里设置 hasMoreHistory 为 false，防止无限重试
+      // setHasMoreHistory(false);
+    } finally {
+      setIsLoadingHistory(false);
+      if (!initialLoadComplete.current) {
+          initialLoadComplete.current = true; // 标记首次加载完成
+           // 首次加载完成后滚动到底部
+           setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "auto" }), 100); // 延迟确保渲染完成
+      }
+    }
+  }, [isLoadingHistory, hasMoreHistory]); // 依赖加载状态和是否有更多
+
   // --- WebSocket 连接管理 ---
   const connectWebSocket = useCallback(() => {
     if (!userId || !userName || ws.current) {
@@ -67,8 +121,14 @@ function App() {
     socket.onopen = () => {
       console.log('WebSocket 连接成功');
       setIsConnected(true);
-      setIsConnecting(false); // 连接成功
+      setIsConnecting(false);
       setError(null);
+      // --- 连接成功后，进行首次历史消息加载 ---
+      initialLoadComplete.current = false; // 重置首次加载标记
+      oldestMessageTimestamp.current = null; // 重置时间戳
+      setHasMoreHistory(true); // 重置是否有更多历史
+      setMessages([]); // 清空旧消息 (如果需要)
+      fetchHistory(); // 首次加载
     };
 
     socket.onmessage = (event) => {
@@ -78,6 +138,10 @@ function App() {
 
         if (message.type === 'message') {
           setMessages((prevMessages) => [...prevMessages, message]);
+          // 更新最老消息时间戳 (如果这是第一条消息)
+          if (prevMessages.length === 0) {
+              oldestMessageTimestamp.current = message.timestamp;
+          }
         } else if (message.type === 'user_list_update') {
           setUsers(message.users);
         } else if (message.type === 'system') {
@@ -112,7 +176,7 @@ function App() {
       }
     };
 
-  }, [userId, userName]); // 依赖 userId 和 userName
+  }, [userId, userName, fetchHistory]); // 添加 fetchHistory 依赖
 
   // 当 userId 和 userName 设置好后，开始连接 WebSocket
   useEffect(() => {
@@ -246,6 +310,41 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]); // 依赖消息列表
 
+  // --- 滚动加载更多历史消息 ---
+  useEffect(() => {
+    const messageArea = messagesAreaRef.current;
+    if (!messageArea) return;
+
+    const handleScroll = () => {
+        // 当滚动条距离顶部很近时 (例如小于 50px)，并且没有正在加载，并且还有更多历史
+        if (messageArea.scrollTop < 50 && !isLoadingHistory && hasMoreHistory && initialLoadComplete.current) {
+            console.log("滚动到顶部，加载更多历史...");
+            // 使用当前最老消息的时间戳去获取更早的消息
+            if (oldestMessageTimestamp.current) {
+                fetchHistory(oldestMessageTimestamp.current);
+            }
+        }
+    };
+
+    messageArea.addEventListener('scroll', handleScroll);
+
+    // 清理事件监听器
+    return () => {
+      messageArea.removeEventListener('scroll', handleScroll);
+    };
+  }, [isLoadingHistory, hasMoreHistory, fetchHistory]); // 依赖这些状态和函数
+
+  // --- 自动滚动到底部 (只对新消息生效) ---
+  useEffect(() => {
+    // 只有在首次加载完成后，或者不是正在加载历史时才自动滚动到底部
+    if (initialLoadComplete.current && !isLoadingHistory) {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    // 注意：首次加载历史后，我们希望用户停留在历史消息的位置，而不是跳到底部
+    // 因此，依赖项不应包含 messages，而是依赖一个标记或消息数量变化
+    // 但简单的实现是只在非加载历史状态下滚动
+  }, [messages.length, isLoadingHistory]); // 依赖消息数量和加载状态
+
   // --- UI 渲染 ---
   return (
     <div className="app-container">
@@ -282,28 +381,55 @@ function App() {
 
         {/* 聊天区域 */}
         <section className="chat-panel">
-          <div className="messages-area">
-            {messages.map((msg, index) => (
-              <div key={index} className={`message-item ${msg.sender?.id === userId ? 'my-message' : (msg.type === 'system' ? 'system-message' : 'other-message')}`}>
-                {msg.type === 'message' && msg.sender && (
-                   <span className="message-sender">{msg.sender.name}: </span>
-                 )}
-                 {msg.type === 'system' ? (
-                    <span className="message-content system-content">{msg.content}</span>
-                 ): msg.messageType === 'TEXT' ? (
-                  <span className="message-content">{msg.content}</span>
-                 ) : msg.messageType === 'IMAGE' ? (
-                   <img
-                      src={msg.content.startsWith('/') ? `${BACKEND_API_URL}${msg.content}` : msg.content} // 处理相对路径和绝对路径
-                      alt="聊天图片"
-                      className="message-image"
-                      // 可以添加点击放大等功能
-                    />
-                 ) : (
-                    <span className="message-content">[未知消息类型]</span>
-                 )}
-              </div>
-            ))}
+          <div className="messages-area" ref={messagesAreaRef}>
+            {/* 添加加载指示器 */} 
+            {isLoadingHistory && <div className="loading-history">正在加载历史消息...</div>}
+            
+            {messages.map((msg, index) => {
+              // 判断是否是 AI Agent 发送的消息
+              const isAgent = msg.sender?.id?.startsWith('agent_');
+              // 判断消息来源，并组合 CSS 类名
+              const messageClass = msg.type === 'system'
+                ? 'system-message'
+                : msg.sender?.id === userId
+                  ? 'my-message'
+                  : isAgent
+                    ? 'other-message agent-message' // Agent 消息也视为 other，但添加 agent-message 类
+                    : 'other-message';
+
+              return (
+                <div key={msg.timestamp || index} className={`message-item ${messageClass}`}>
+                    {/* 对于非系统、非自己的消息，显示发送者名称 */}
+                    {msg.type === 'message' && msg.sender?.id !== userId && (
+                        <span className="message-sender">
+                            {msg.sender.name}
+                            {/* 如果是 Agent，可以在名字后加标识 */}
+                            {/* {isAgent && ' (助手)'} */}
+                        </span>
+                    )}
+                    {/* 渲染消息内容 */}
+                    {msg.type === 'system' ? (
+                        <span className="message-content system-content">{msg.content}</span>
+                    ) : msg.messageType === 'TEXT' ? (
+                        <span className="message-content">{msg.content}</span>
+                    ) : msg.messageType === 'IMAGE' ? (
+                        <img
+                            src={msg.content.startsWith('/') ? `${BACKEND_API_URL}${msg.content}` : msg.content}
+                            alt="聊天图片"
+                            className="message-image"
+                        />
+                    ) : (
+                        <span className="message-content">[未知消息类型]</span>
+                    )}
+                     {/* 显示时间戳 (可选) */}
+                     {msg.timestamp && (
+                       <span className="message-timestamp">
+                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                       </span>
+                     )}
+                </div>
+              );
+            })}
             {/* 用于自动滚动的空元素 */}
             <div ref={messagesEndRef} />
           </div>

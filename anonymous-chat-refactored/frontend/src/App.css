@@ -135,6 +135,21 @@ body {
   padding: 15px;
   overflow-y: auto; /* 允许滚动 */
   background-color: #e9ebee; /* 类似 Facebook 的聊天背景色 */
+  position: relative; /* 为加载指示器定位 */
+}
+
+/* 加载历史消息指示器 */
+.loading-history {
+    position: absolute; /* 绝对定位 */
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.8em;
+    z-index: 10; /* 确保在消息上方 */
 }
 
 .message-item {
@@ -170,6 +185,18 @@ body {
     text-align: left;
 }
 
+/* AI Agent 的消息特定样式 */
+.agent-message .message-content {
+    background-color: #e1f5fe; /* 淡蓝色背景，区分普通用户 */
+    border: 1px solid #b3e5fc;
+}
+.agent-message .message-sender::after {
+    content: " (AI)"; /* 在名字后添加 (AI) 标识 */
+    font-size: 0.9em;
+    color: #0277bd; /* 蓝色标识 */
+    margin-left: 4px;
+}
+
 /* 自己的消息 */
 .my-message {
   margin-left: auto; /* 右对齐的关键 */
@@ -199,6 +226,22 @@ body {
     padding: 2px 5px;
     border-radius: 5px;
     font-style: italic;
+}
+
+/* 消息时间戳样式 */
+.message-timestamp {
+    display: block;
+    font-size: 0.75em;
+    color: #999;
+    text-align: right; /* 时间戳靠右 */
+    margin-top: 3px;
+    clear: both; /* 确保时间戳在新行 */
+}
+.my-message .message-timestamp {
+    text-align: right;
+}
+.other-message .message-timestamp {
+    text-align: left; /* Agent 消息时间戳也靠左 */
 }
 
 /* 聊天图片 */
