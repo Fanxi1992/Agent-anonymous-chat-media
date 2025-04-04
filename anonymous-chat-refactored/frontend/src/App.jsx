@@ -192,7 +192,7 @@ function App() {
       }
       ws.current = null; // 清理引用
     };
-  }, [userId, userName, connectWebSocket]); // 包含 connectWebSocket 作为依赖
+  }, [userId, userName]); // 只依赖用户身份
 
 
   // --- 消息发送 ---

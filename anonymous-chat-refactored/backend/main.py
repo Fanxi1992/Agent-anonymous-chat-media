@@ -30,6 +30,8 @@ connection_manager: ConnectionManager | None = None
 agent_manager: AgentManager | None = None
 agent_scheduler: AgentScheduler | None = None
 
+app = FastAPI()
+
 # --- 应用启动事件 ---
 @app.on_event("startup")
 async def on_startup(): # 改为 async
@@ -53,8 +55,6 @@ async def on_startup(): # 改为 async
     agent_scheduler = AgentScheduler(agent_manager)
     agent_scheduler.start_all_agents()
     logger.info("AgentScheduler 初始化并启动完成。")
-
-app = FastAPI()
 
 # --- CORS 配置 ---
 # 定义允许的前端来源 (根据你的前端开发服务器地址修改)
